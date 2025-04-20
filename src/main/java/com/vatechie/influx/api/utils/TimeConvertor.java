@@ -27,7 +27,7 @@ public class TimeConvertor {
 			slf4jLogger.error(e.getMessage(),e);
 		}
 		return date2.getTime();
-	}//method dateConvertToUTC
+	}
 	
 	public static long convertUTCTimeToLong(String date) {
 		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
@@ -58,15 +58,6 @@ public class TimeConvertor {
 	}
 	
 	public static String dateConvertToUTC(Date date) {
-
-		/*DateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.S",Locale.ENGLISH);
-		Date date2 = null;
-		try {
-			date2 = format.parse(date.toString());
-		} catch (ParseException e) {
-			e.printStackTrace();
-		}
-		return date2.toString();*/
 		
 		DateFormat formatterIST = new SimpleDateFormat("EEE MMM dd HH:mm:ss zzz yyyy");
 		formatterIST.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata")); // better than using IST
@@ -83,7 +74,7 @@ public class TimeConvertor {
 		
 		return formatterUTC.format(ISTDate);
 		
-	}//method dateConvertToUTC
+	}
 	
 	public static long dateConvertToUTCLong(String date) {
 				
@@ -100,6 +91,6 @@ public class TimeConvertor {
 		}
 		return UTCDate;
 		
-	}//method dateConvertToUTCLong
+	}
 	
-}//class TimeConvertor
+}

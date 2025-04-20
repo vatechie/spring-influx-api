@@ -23,7 +23,7 @@ public class InfluxConnection {
 	public static long networkConnectTimeout = 30000l;
 	public static long networkReadTimeout = 60000l;
 	public static long networkWriteTimeout = 30000l;
-	public static long influxUnresponiveSleepTime = 100L;
+	public static long influxUnresponsiveSleepTime = 100L;
 	
 	public static InfluxDB getInstance(){
 		if(influxConnection == null){
@@ -88,11 +88,11 @@ public class InfluxConnection {
 			}
 			try {
 				try {
-					influxUnresponiveSleepTime = Long.parseLong(prop.getProperty("influx.db.unrespnsive.sleep"));
+					influxUnresponsiveSleepTime = Long.parseLong(prop.getProperty("influx.db.unrespnsive.sleep"));
 				} catch (NumberFormatException e) {
 					logger.error(e.getMessage(),e);
 				}
-				Thread.sleep(influxUnresponiveSleepTime);
+				Thread.sleep(influxUnresponsiveSleepTime);
 			} catch (InterruptedException e) {
 				logger.error(e.getMessage(),e);
 			}
@@ -105,6 +105,6 @@ public class InfluxConnection {
 		
 		return influxDBstarted;
 		
-	}//method checkInfluxConnection
+	}
 
-}//class InfluxConnection
+}

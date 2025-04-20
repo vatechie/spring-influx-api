@@ -2,14 +2,16 @@ package com.vatechie.influx.api.service;
 
 import java.lang.invoke.MethodHandles;
 
+import com.vatechie.influx.api.dto.DataIngestionResponse;
 import org.influxdb.InfluxDB;
 import org.influxdb.dto.Pong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import com.vatechie.influx.api.dao.InfluxAPIRepository;
+import com.vatechie.influx.api.repository.InfluxAPIRepository;
 import com.vatechie.influx.api.utils.InfluxConnection;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class InfluxAPIService {
@@ -36,11 +38,8 @@ public class InfluxAPIService {
 		return response.isGood();
 	}
 
-	public String insertData() {
+	public DataIngestionResponse insertData(MultipartFile file) {
 		logger.info("Insert api service called...");
-		influxRepo.insertCSVFileData("src/main/resources/dumpdata.csv");
-		logger.info("Insert api completed");
-		
-		return "success";
+		return influxRepo.insertCSVFileData(file);
 	}
 }

@@ -1,14 +1,13 @@
-package com.vatechie.influx.api.dao;
+package com.vatechie.influx.api.repository;
 
 import java.io.BufferedReader;
-import java.io.FileReader;
+import java.io.InputStreamReader;
 import java.lang.invoke.MethodHandles;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.Properties;
-import java.util.TimeZone;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+import com.vatechie.influx.api.dto.DataIngestionResponse;
 import org.influxdb.InfluxDB;
 import org.influxdb.dto.BatchPoints;
 import org.influxdb.dto.Point;
@@ -22,6 +21,7 @@ import org.springframework.stereotype.Repository;
 import com.vatechie.influx.api.utils.InfluxConnection;
 import com.vatechie.influx.api.utils.ReadProperties;
 import com.vatechie.influx.api.utils.TimeConvertor;
+import org.springframework.web.multipart.MultipartFile;
 
 @Repository
 public class InfluxAPIRepository {
@@ -32,7 +32,7 @@ public class InfluxAPIRepository {
 	/*
 	 * Insert all the points as a BatchPoints into the influxDB
 	 * */
-	public static void insertBatchPoints(BatchPoints batchPoints){
+	public static Boolean insertBatchPoints(BatchPoints batchPoints){
 
 		influxDB = InfluxConnection.getInstance();
 		
@@ -47,7 +47,7 @@ public class InfluxAPIRepository {
 		response = influxDB.ping();
 		try {
 			response = influxDB.ping();
-			logger.info("InfluxDB response : "+response);
+			logger.info("InfluxDB response : " + response);
 			if (response.isGood()) {
 				try {
 					influxDB.write(batchPoints);
@@ -59,16 +59,17 @@ public class InfluxAPIRepository {
 		} catch (Exception e) {
 			// NOOP intentional
 			logger.error(e.getMessage(),e);
+			return false;
 		}
 		
 		logger.info("Successful insertion of data into the influxDB");
-		
-	}//method insertQueryData
+		return true;
+	}
 	
 	/*
 	 * Influx data write method
 	 * */
-	public void insertCSVFileData(String fileName) {
+	public DataIngestionResponse insertCSVFileData(MultipartFile file) {
 		logger.info("******** Start of method insertCSVFileData ********");
 		
 		influxDB = InfluxConnection.getInstance();
@@ -80,30 +81,52 @@ public class InfluxAPIRepository {
 				.consistency(InfluxDB.ConsistencyLevel.ALL).build();
 		logger.info("BatchPoint created successfully");
 
-		Point point = null;
 		long timeToSet = 0l;
 		
-		try(BufferedReader br = new BufferedReader(new FileReader(fileName))) {
+		try(BufferedReader br = new BufferedReader(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
+
+			String headerLine = br.readLine();
+			if (headerLine == null) {
+				return DataIngestionResponse.builder()
+						.message( "CSV header is missing.")
+						.status(false)
+						.build();
+			}
+
+			String[] headers = headerLine.split(",");
+			Map<String, Integer> headerMap = new HashMap<>();
+			for (int i = 0; i < headers.length; i++) {
+				headerMap.put(headers[i].trim().toLowerCase(), i);
+			}
+
 			String data;
 			while((data = br.readLine()) != null) {
 				logger.debug(data);
 				String [] dataArray = data.split(",");
+
 				//timeToSet = TimeConvertor.dateConvertToUTC();
-				point = Point.measurement(measurementName).time(new Date().getTime(), TimeUnit.MILLISECONDS)
-						.tag("namefirst", dataArray[0])
-						.addField("namelast", dataArray[1])
-						.addField("email", dataArray[2])
-						.tag("username", dataArray[3])
-						.addField("age", dataArray[4])
-						.addField("country", dataArray[5]).build();
-				batchPoints.point(point);
+				Point.Builder pointBuilder = Point.measurement(measurementName).time(new Date().getTime(), TimeUnit.MILLISECONDS);
+
+				for (Map.Entry<String, Integer> entry : headerMap.entrySet()) {
+					String key = entry.getKey();
+					int index = entry.getValue();
+					String value = index < dataArray.length ? dataArray[index].trim() : "";
+					pointBuilder.addField(key, value);
+					// Config can be provided to decide which header field data is stored as tag or field
+					// pointBuilder.tag(key, value);
+				}
+
+				batchPoints.point(pointBuilder.build());
 			}
-		}catch(Exception e) {
+		} catch(Exception e) {
 			logger.error(e.getMessage());
 		}
 		
-		insertBatchPoints(batchPoints);
+		Boolean status = insertBatchPoints(batchPoints);
 		logger.info("******** End of method insertBatchPoints ********");
+		return DataIngestionResponse.builder()
+				.status(status)
+				.build();
 	}
 	 
 	public void checkAndDeleteCurrentDateDataEntries(){
@@ -135,26 +158,26 @@ public class InfluxAPIRepository {
 		Query qObj = new Query(influxQuery, dbName);
 		QueryResult qrObj = influxDB.query(qObj);
 		
-		for(QueryResult.Result result : qrObj.getResults()){
-			if(result != null && result.getSeries()!= null){
-				for(QueryResult.Series series : result.getSeries()){
-					if(series != null){
+		for (QueryResult.Result result : qrObj.getResults()) {
+			if (result != null && result.getSeries()!= null) {
+				for (QueryResult.Series series : result.getSeries()){
+					if (series != null) {
 						logger.trace("series.getName() = " + series.getName());
 						logger.trace("series.getColumns() = "	+ series.getColumns());
 						logger.trace("series.getValues() = " + series.getValues());
 						logger.trace("series.getTags() = " + series.getTags());
-						if(series.getValues() != null){
+						if (series.getValues() != null) {
 							logger.info("Deleting today's data from the influx");
 							Query delQueryObj = new Query(influxDataDeleteQuery, dbName);
 							influxDB.query(delQueryObj);
 						}
 					}
-				}//inner for loop
-			}else {
+				}
+			} else {
 				logger.info("Nothing to delete from influx measurement.");
 			}
-		}//outer for loop
+		}
 		logger.trace("End of checkAndDeleteCurrentDateDataEntries method.");
-	}//checkAndDeleteCurrentDateDataEntries
+	}
 	
-}//class InfluxAPIRepository
+}
